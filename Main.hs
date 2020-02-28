@@ -98,14 +98,32 @@ multiLine = T.append <$> (notEmpty allButLast) <*> lineAndNL
 dependsP :: Parser [[T.Text]]
 dependsP = map (T.splitOn " | ") <$> nub <$> commaSeparated
     where
-        withoutVersionNr = spanP (\c -> if c == ',' then False else True)
-        withVersionNr = spanP (not . isSpace)
+        commaSeparated = sepBy oneDependsP (textP ", ")
+
+withVersionNr :: Parser T.Text
+withVersionNr = spanP (\c -> ((not . isSpace) c) && c /= ',')
                         <* ws
                         <* charP '('
                         <* spanP (\c -> if c == ')' then False else True)
                         <* charP ')'
-        commaSeparated = sepBy (withVersionNr <|> withoutVersionNr) (textP ", ")
 
+withVersionNrPipe :: Parser T.Text
+withVersionNrPipe = T.append <$> withVersionNr <*> optionalTextP " | "
+
+withoutVersionNr :: Parser T.Text
+withoutVersionNr = spanP (\c -> ((not . isSpace) c) && c /= ',')
+
+withoutVersionNrPipe :: Parser T.Text
+withoutVersionNrPipe = T.append <$> (notEmpty withoutVersionNr) <*> optionalTextP " | "
+
+oneDependsP :: Parser T.Text
+oneDependsP = T.concat <$> many ((withVersionNrPipe) <|> (withoutVersionNrPipe))
+
+optionalTextP :: T.Text -> Parser T.Text
+optionalTextP text = Parser $ \input -> if T.take lenText input == text
+    then Just (text, T.drop lenText input)
+    else Just ("", input)
+        where lenText = T.length text
 
 notEmpty :: Parser T.Text -> Parser T.Text
 notEmpty p = Parser $ \input1 -> do
