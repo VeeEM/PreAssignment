@@ -8,8 +8,8 @@ version:             0.1.0.0
 -- synopsis:
 -- description:
 -- bug-reports:
-license:             BSD3
-license-file:        LICENSE
+-- license:             BSD3
+-- license-file:        LICENSE
 author:              Ville-Markus Yli-Suutala
 maintainer:          3628916+VeeEM@users.noreply.github.com
 -- copyright:
