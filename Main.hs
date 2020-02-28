@@ -13,6 +13,7 @@ import Control.Applicative
 import Control.Monad
 import Web.Scotty
 import System.Environment
+import System.IO
 
 data PackageInfo = PackageInfo {
       packageName        :: T.Text
@@ -248,9 +249,11 @@ startServer pinfomap = do
 
 main :: IO ()
 main = do
-    --args <- getArgs
-    --let filePath = head args
-    txt <- IOText.readFile "/app/mockdata"
+    args <- getArgs
+    let filePath = head args
+    fileHandle <- openFile filePath ReadMode
+    hSetEncoding fileHandle utf8
+    txt <- IOText.hGetContents fileHandle
     let parserResult = runParser paragraphsP txt
     case parserResult of
         Just (paragraphList, _) -> do
