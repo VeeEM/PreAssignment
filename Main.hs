@@ -2,11 +2,13 @@
 module Main where
 
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as L
 import qualified Data.Text.IO as IOText
 import qualified Data.Map as Map
 import Data.Char
 import Control.Applicative
 import Data.List
+import Web.Scotty
 
 data PackageInfo = PackageInfo {
       packageName        :: T.Text
@@ -104,6 +106,7 @@ dependsP = map (T.splitOn " | ") <$> nub <$> commaSeparated
                         <* charP ')'
         commaSeparated = sepBy (withVersionNr <|> withoutVersionNr) (textP ", ")
 
+
 notEmpty :: Parser T.Text -> Parser T.Text
 notEmpty p = Parser $ \input1 -> do
     (x, input2) <- runParser p input1
@@ -163,7 +166,54 @@ findOneRDep pinfo = foldr (Map.unionWith (++)) Map.empty depMaps
         flatDeps = concat $ packageDepends pinfo
         depMaps = map (\x -> Map.singleton x [packageName pinfo]) flatDeps
 
+htmlListFromKeys :: [T.Text] -> T.Text
+htmlListFromKeys keys = T.concat ["<ol>", foldr f T.empty keys, "</ol>"]
+    where
+        f key listHtml = T.append (T.concat ["<li><a href=\"", key, "\">", key, "</a></li>\n"]) listHtml
+
+htmlPackageInfo :: PackageInfo -> Map.Map T.Text PackageInfo -> T.Text
+htmlPackageInfo pinfo pinfomap = T.concat [ "<table style=\"width:50%\">"
+                                          , "<tr><th>Package</th><td>"
+                                          , packageName pinfo
+                                          , "</td></tr>"
+                                          , "<tr><th>Description</th><td><pre>"
+                                          , packageDescription pinfo
+                                          , "</pre></td></tr>"
+                                          , "<tr><th>Depends</th><td>"
+                                          , htmlDepends (packageDepends pinfo) pinfomap
+                                          , "</td></tr>"
+                                          , "<tr><th>Reverse depends</th><td>"
+                                          , "render reverse depends"
+                                          , "</td></tr>"
+                                          , "</table>" ]
+
+htmlDepends :: [[T.Text]] -> Map.Map T.Text PackageInfo -> T.Text
+htmlDepends pdepends pinfomap = T.intercalate ", " $ (map (T.intercalate " | ")) dependsWithLinks
+    where
+        packageLink name = T.concat ["<a href=\"", name, "\">", name, "</a>"]
+        linkIfFound name = case Map.lookup name pinfomap of
+                            Just _ -> packageLink name
+                            Nothing -> name
+        dependsWithLinks = (map . map) linkIfFound pdepends
+
+
+startServer :: Map.Map T.Text PackageInfo -> IO ()
+startServer pinfomap = scotty 3000 $
+                       get "/:package" $ do
+                            package <- param "package" :: ActionM T.Text
+                            case package of
+                                "" -> html $ (L.fromStrict $ htmlListFromKeys (Map.keys pinfomap))
+                                name -> case Map.lookup name pinfomap of
+                                            Just pinfo -> html $ L.fromStrict $ htmlPackageInfo pinfo pinfomap
+                                            Nothing -> html "<h1>404: No such package exists</h1>"
+                            
+
 main :: IO ()
 main = do
-    txt <- readFile "data"
-    print txt
+    txt <- IOText.readFile "data"
+    let parserResult = runParser paragraphsP txt
+    case parserResult of
+        Just (paragraphList, _) -> do
+            let packageInfoMap = (packageInfoListToMap . calculateRDepends . (map mapToPackageInfo) . paragraphsToMap) paragraphList
+            startServer packageInfoMap
+        Nothing -> print "Error: Failed to parse file"
