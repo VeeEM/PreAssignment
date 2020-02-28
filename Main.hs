@@ -190,7 +190,7 @@ htmlListFromKeys keys = T.concat ["<ol>", foldr f T.empty keys, "</ol>"]
         f key listHtml = T.append (T.concat ["<li><a href=\"", key, "\">", key, "</a></li>\n"]) listHtml
 
 htmlPackageInfo :: PackageInfo -> Map.Map T.Text PackageInfo -> T.Text
-htmlPackageInfo pinfo pinfomap = T.concat [ "<table style=\"width:50%\">"
+htmlPackageInfo pinfo pinfomap = T.concat [ "<table border=\"1\" style=\"width:50%\">"
                                           , "<tr><th>Package</th><td>"
                                           , packageName pinfo
                                           , "</td></tr>"
@@ -201,18 +201,29 @@ htmlPackageInfo pinfo pinfomap = T.concat [ "<table style=\"width:50%\">"
                                           , htmlDepends (packageDepends pinfo) pinfomap
                                           , "</td></tr>"
                                           , "<tr><th>Reverse depends</th><td>"
-                                          , "render reverse depends"
+                                          , htmlRDepends (packageRDepends pinfo) pinfomap
                                           , "</td></tr>"
                                           , "</table>" ]
 
 htmlDepends :: [[T.Text]] -> Map.Map T.Text PackageInfo -> T.Text
 htmlDepends pdepends pinfomap = T.intercalate ", " $ (map (T.intercalate " | ")) dependsWithLinks
     where
-        packageLink name = T.concat ["<a href=\"", name, "\">", name, "</a>"]
         linkIfFound name = case Map.lookup name pinfomap of
                             Just _ -> packageLink name
                             Nothing -> name
         dependsWithLinks = (map . map) linkIfFound pdepends
+
+packageLink :: T.Text -> T.Text
+packageLink name = T.concat ["<a href=\"", name, "\">", name, "</a>"]
+
+htmlRDepends :: [T.Text] -> Map.Map T.Text PackageInfo -> T.Text
+htmlRDepends prdepends pinfomap = T.intercalate ", " rdependsWithLinks
+    where
+        linkIfFound name = case Map.lookup name pinfomap of
+                            Just _ -> packageLink name
+                            Nothing -> name
+        rdependsWithLinks = map linkIfFound prdepends
+
 
 
 startServer :: Map.Map T.Text PackageInfo -> IO ()
