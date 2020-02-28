@@ -15,7 +15,7 @@ maintainer:          3628916+VeeEM@users.noreply.github.com
 -- copyright:
 -- category:
 build-type:          Simple
-extra-source-files:  CHANGELOG.md
+-- extra-source-files:  CHANGELOG.md
 
 executable PreAssignment
   main-is:             Main.hs
