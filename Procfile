@@ -1,1 +1,1 @@
-web: PreAssignment mockdata
+web: PreAssignment /app/mockdata
