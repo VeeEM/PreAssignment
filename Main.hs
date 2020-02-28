@@ -248,9 +248,9 @@ startServer pinfomap = do
 
 main :: IO ()
 main = do
-    args <- getArgs
-    let filePath = head args
-    txt <- IOText.readFile filePath
+    --args <- getArgs
+    --let filePath = head args
+    txt <- IOText.readFile "/app/mockdata"
     let parserResult = runParser paragraphsP txt
     case parserResult of
         Just (paragraphList, _) -> do
