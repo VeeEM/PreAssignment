@@ -6,9 +6,13 @@ import qualified Data.Text.Lazy as L
 import qualified Data.Text.IO as IOText
 import qualified Data.Map as Map
 import Data.Char
-import Control.Applicative
 import Data.List
+import Data.Maybe
+import Text.Read (readMaybe)
+import Control.Applicative
+import Control.Monad
 import Web.Scotty
+import System.Environment
 
 data PackageInfo = PackageInfo {
       packageName        :: T.Text
@@ -227,19 +231,26 @@ htmlRDepends prdepends pinfomap = T.intercalate ", " rdependsWithLinks
 
 
 startServer :: Map.Map T.Text PackageInfo -> IO ()
-startServer pinfomap = scotty 3000 $
-                       get "/:package" $ do
-                            package <- param "package" :: ActionM T.Text
-                            case package of
-                                "" -> html $ (L.fromStrict $ htmlListFromKeys (Map.keys pinfomap))
-                                name -> case Map.lookup name pinfomap of
-                                            Just pinfo -> html $ L.fromStrict $ htmlPackageInfo pinfo pinfomap
-                                            Nothing -> html "<h1>404: No such package exists</h1>"
+startServer pinfomap = do
+                   -- Read port from environment variable for Heroku support
+                   port <- fromMaybe 3000
+                        . join
+                        . fmap readMaybe <$> lookupEnv "PORT"
+                   scotty port $
+                    get "/:package" $ do
+                        package <- param "package" :: ActionM T.Text
+                        case package of
+                            "" -> html $ (L.fromStrict $ htmlListFromKeys (Map.keys pinfomap))
+                            name -> case Map.lookup name pinfomap of
+                                        Just pinfo -> html $ L.fromStrict $ htmlPackageInfo pinfo pinfomap
+                                        Nothing -> html "<h1>404: No such package exists</h1>"
                             
 
 main :: IO ()
 main = do
-    txt <- IOText.readFile "data"
+    args <- getArgs
+    let filePath = head args
+    txt <- IOText.readFile filePath
     let parserResult = runParser paragraphsP txt
     case parserResult of
         Just (paragraphList, _) -> do
